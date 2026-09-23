@@ -86,7 +86,7 @@ export const CARDS: Record<string, Card> = {
     baseRate: 0.01, // メルカリ以外は通常1%（一部対象外の加盟店あり）
     payeeRates: { mercari: 0.04 }, // 実際の率は設定 mercardRate で上書きする
     summary: 'メルカリで1〜4%、その他1%',
-    conditions: 'メルカリ還元は月5,000ポイントまで（計算は毎月均等に使う前提）',
+    conditions: 'メルカリ還元は月5,000ポイントまで。設定した利用月数に均等に使う前提',
     sourceUrl: 'https://help.jp.mercari.com/guide/articles/1227/',
     verifiedAt: VERIFIED_AT,
   },
@@ -103,9 +103,19 @@ export const CARDS: Record<string, Card> = {
     sourceUrl: 'https://www.jcb.co.jp/corporate/houjin/bizone.html',
     verifiedAt: VERIFIED_AT,
   },
+  anaJcbPersonal: {
+    id: 'anaJcbPersonal', name: 'ANA JCB一般カード（個人向け）', roles: ['core'],
+    fees: [{ label: '年会費', amount: 2_200, firstYearFree: true }, { label: '2マイルコース移行手数料', amount: 5_500 }],
+    currency: 'ana', baseRate: 0.01, annualBonusMiles: 1_000,
+    exclusiveGroup: 'anaJcb', summary: 'ANAマイル 1%（2マイルコース）',
+    conditions: '個人名義のカード。事業利用の可否・引落口座は発行会社へ確認。毎年マイル移行する前提',
+    sourceUrl: 'https://www.jcb.co.jp/ordercard/teikei/ana_card.html', verifiedAt: VERIFIED_AT,
+  },
   anaJcb: {
     id: 'anaJcb',
     name: 'ANA JCB法人カード（一般）',
+    corpOnly: true,
+    exclusiveGroup: 'anaJcb',
     roles: ['core'],
     fees: [
       { label: '年会費', amount: 2_475, firstYearFree: true },
@@ -242,7 +252,7 @@ export type CardId = keyof typeof CARDS
 
 /** 目的ごとの自動選択候補（role: core のみ） */
 export const GOAL_CANDIDATES: Record<Goal, CardId[]> = {
-  ana: ['anaJcb', 'anaDinersPremium', 'bizGreen', 'marriott'],
+  ana: ['anaJcbPersonal', 'anaJcb', 'anaDinersPremium', 'bizGreen', 'marriott'],
   jal: ['saison', 'marriott'],
   hotel: ['marriott'],
   cash: ['bizOne'],
@@ -269,6 +279,11 @@ export const RULES = {
 } as const
 
 export interface Assumptions {
+  /** 0なら枚数制限なし */
+  maxCards: number
+  allowInviteOnly: boolean
+  /** 年間総額を均等に決済する月数 */
+  mercariMonths: number
   mileValue: number
   marriottPointValue: number
   mercardRate: number
@@ -281,6 +296,9 @@ export interface Assumptions {
 }
 
 export const DEFAULT_ASSUMPTIONS: Assumptions = {
+  maxCards: 0,
+  allowInviteOnly: false,
+  mercariMonths: 12,
   mileValue: 2,
   marriottPointValue: 1,
   mercardRate: 0.04,

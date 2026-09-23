@@ -79,9 +79,9 @@ export function PerkSection() {
   )
 }
 
-export function GoalAnswers({ answers, active }: { answers: Record<Goal, SimResult>; active: Goal[] }) {
+export function GoalAnswers({ answers, active, onSelect }: { answers: Record<Goal, SimResult>; active: Goal[]; onSelect: (goal: Goal) => void }) {
   return (
-    <Section id="answers" title="目的別の答え" lead="今の支払い額で、目的を1つに絞った場合のおすすめです。">
+    <Section id="answers" title="目的別の答え" lead="今の支払い額で、目的を1つに絞った場合のおすすめです。目的名を押すと詳しい結果に切り替わります。">
       <ul className="divide-y divide-stone-100 dark:divide-stone-800">
         {GOALS.map((g) => {
           const r = answers[g]
@@ -89,11 +89,11 @@ export function GoalAnswers({ answers, active }: { answers: Record<Goal, SimResu
           return (
             <li key={g} className="grid gap-1 py-3 sm:grid-cols-[8rem_1fr_auto] sm:items-baseline sm:gap-3">
               <p className="text-sm font-semibold">
-                {GOAL_LABELS[g]}
+                <button type="button" className="py-2 text-teal-800 underline underline-offset-4 dark:text-teal-300" onClick={() => onSelect(g)}>{GOAL_LABELS[g]}で比較</button>
                 {active.includes(g) && <span className="ml-1.5 rounded bg-teal-100 px-1.5 py-0.5 text-[10px] text-teal-800 dark:bg-teal-900 dark:text-teal-200">選択中</span>}
               </p>
               <p className="text-sm">{has ? comboName(r.best) : '—'}</p>
-              <p className="num text-sm font-bold sm:text-right">{has ? yen(r.best.net) : ''}</p>
+              <p className="num text-sm font-bold sm:text-right">{has ? `${yen(r.best.net)}相当` : ''}</p>
             </li>
           )
         })}

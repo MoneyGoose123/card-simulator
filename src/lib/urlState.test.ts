@@ -8,7 +8,8 @@ describe('URLクエリ', () => {
       spendMan: { ...DEFAULT_STATE.spendMan, amazon: 200, other: 1.5 },
       goals: ['ana', 'hotel'] as const,
       entity: 'corp' as const,
-      assumptions: { ...DEFAULT_STATE.assumptions, mileValue: 3, mercardRate: 0.02, ocBankTransfer: false, airLimit: 3_000_000, useOtherAirlines: false },
+      inputPeriod: 'month' as const,
+      assumptions: { ...DEFAULT_STATE.assumptions, maxCards: 2, allowInviteOnly: true, mercariMonths: 6, mileValue: 3, mercardRate: 0.025, ocBankTransfer: false, airLimit: 3_000_000, useOtherAirlines: false },
     }
     expect(parseState(toQuery({ ...s, goals: [...s.goals] }))).toEqual({ ...s, goals: [...s.goals] })
   })

@@ -9,7 +9,7 @@ function input(spendMan: Partial<Record<Payee, number>>, goals: Goal[], over: Pa
   return {
     spend,
     goals,
-    entity: 'sole',
+    entity: 'corp',
     today: '2026-09-23',
     // 9章の前提：mileValue 2円、mercardRate 4%、ocBankTransfer オフ、airLimit 500万円
     assumptions: { ...DEFAULT_ASSUMPTIONS, mileValue: 2, mercardRate: 0.04, ocBankTransfer: false, airLimit: 5_000_000, ...over },
@@ -174,8 +174,11 @@ describe('その他のルール', () => {
   })
 
   it('ANA JCBを採用し個人事業主なら口座条件の警告', () => {
-    const r = simulate(input({ other: 300 }, ['ana']))
-    expect(hasWarning(r, 'anaJcbSole')).toBe(true)
+    const r = simulate({ ...input({ other: 300 }, ['ana']), entity: 'sole' })
+    expect(r.best.cardIds).toEqual(['anaJcbPersonal'])
+    expect(r.candidates).not.toContain('anaJcb')
+    expect(r.best.net).toBe(54_300)
+    expect(hasWarning(r, 'anaJcbPersonal')).toBe(true)
   })
 
   it('3倍対象が500万円超なら超過分は1倍', () => {
@@ -239,5 +242,41 @@ describe('検証レポート（2026-09-23）の再現ケース', () => {
     const saison = r.allocations.filter((a) => a.cardId === 'saison').reduce((s, a) => s + a.amount, 0)
     expect(saison).toBeLessThanOrEqual(15_000_000)
     expect(r.allocations.reduce((s, a) => s + a.amount, 0)).toBe(17_000_000)
+  })
+})
+
+
+describe('追加機能と配分の回帰テスト', () => {
+  it('メルカリ600万＋Amazon100万では高還元の150万円をメルカードに残す', () => {
+    const r = simulate(input({ mercari: 600, amazon: 100 }, ['hotel']))
+    expect(r.best.net).toBe(202_500)
+    expect(r.best.allocations.filter(a => a.cardId === 'mercard').reduce((sum, a) => sum + a.amount, 0)).toBe(1_500_000)
+  })
+  it('メルカードに100万円だけ割り当てた場合は上限到達と誤表示しない', () => {
+    const r = simulate(input({ mercari: 500 }, ['hotel']))
+    expect(hasWarning(r, 'mercardCap')).toBe(false)
+  })
+  it('1か月に集中する場合はメルカードの還元を5,000円までにする', () => {
+    const r = simulate(input({ mercari: 300 }, ['cash'], { mercariMonths: 1 }))
+    const merc = r.best.allocations.find(a => a.cardId === 'mercard')!
+    expect(merc.amount).toBe(125_000)
+    expect(merc.value).toBe(5_000)
+    expect(r.best.allocations.reduce((sum, a) => sum + a.amount, 0)).toBe(3_000_000)
+  })
+  it('カード枚数の制限を守り、比較用の現金派にも適用する', () => {
+    const full = simulate(input({ amazon: 200, mercari: 300, jp: 200 }, ['ana', 'hotel']))
+    for (const maxCards of [1, 2, 3]) {
+      const r = simulate(input({ amazon: 200, mercari: 300, jp: 200 }, ['ana', 'hotel'], { maxCards }))
+      expect(r.best.cardIds.length).toBeLessThanOrEqual(maxCards)
+      expect(r.cashTrio.cardIds.length).toBeLessThanOrEqual(maxCards)
+      expect(r.best.net).toBeLessThanOrEqual(full.best.net)
+      expect(r.best.allocations.reduce((sum, a) => sum + a.amount, 0)).toBe(7_000_000)
+    }
+  })
+  it('招待制は明示した場合だけ候補に入り、法人では個人向けJCBを除く', () => {
+    const r = simulate(input({ other: 2000 }, ['ana']))
+    expect(r.candidates).not.toContain('anaDinersPremium')
+    expect(r.candidates).not.toContain('anaJcbPersonal')
+    expect(simulate(input({ other: 2000 }, ['ana'], { allowInviteOnly: true })).candidates).toContain('anaDinersPremium')
   })
 })

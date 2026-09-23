@@ -1,6 +1,7 @@
 // カード選びシミュレーターの計算本体（純粋関数）。
 import {
   ALWAYS_CANDIDATES,
+  DEFAULT_ASSUMPTIONS,
   CARDS,
   GOAL_CANDIDATES,
   GOAL_LABELS,
@@ -81,11 +82,12 @@ export function toggleGoal(goals: Goal[], goal: Goal): { goals: Goal[]; error?: 
   return { goals: [...goals, goal] }
 }
 
-export function candidatesFor(goals: Goal[], entity: Entity): CardId[] {
+export function candidatesFor(goals: Goal[], entity: Entity, a: Assumptions = DEFAULT_ASSUMPTIONS): CardId[] {
   const ids = [...goals.flatMap((g) => GOAL_CANDIDATES[g]), ...ALWAYS_CANDIDATES]
   return [...new Set(ids)].filter((id) => {
     const c = CARDS[id]
     return c.roles.includes('core') && (entity === 'corp' || !c.corpOnly)
+      && (id !== 'anaJcbPersonal' || entity === 'sole') && (!c.inviteOnly || a.allowInviteOnly)
   })
 }
 
@@ -102,7 +104,7 @@ function subsets(ids: CardId[]): CardId[][] {
 function searchBest(ids: CardId[], ctx: Context, filter: (set: CardId[]) => boolean = () => true): ComboEval | null {
   let best: ComboEval | null = null
   for (const set of subsets(ids)) {
-    if (!filter(set)) continue
+    if ((ctx.assumptions.maxCards > 0 && set.length > ctx.assumptions.maxCards) || !filter(set)) continue
     const ev = evaluateCardSet(set, ctx)
     if (!best || ev.net > best.net + 1e-6 || (Math.abs(ev.net - best.net) <= 1e-6 && set.length < best.cardIds.length)) {
       best = ev
@@ -186,8 +188,9 @@ function comboWarnings(ev: ComboEval, ctx: Context): Warning[] {
     w.push({ id: 'saisonCap', message: 'セゾンのJALマイル加算は年1,500万円までです。超えた分は別のカードで計算しています。' })
   }
   const merc = ev.allocations.find((x) => x.payee === 'mercari' && x.cardId === 'mercard')?.amount ?? 0
-  if (merc > 0 && ctx.spend.mercari > merc + 1) {
-    w.push({ id: 'mercardCap', message: `メルカードのメルカリ還元は月5,000ポイントまでです。毎月均等に使う前提で、年${man(merc)}を超えた分は別のカードで計算しています。` })
+  const mercCap = (RULES.mercard.monthlyPointCap * a.mercariMonths) / a.mercardRate
+  if (merc > 0 && merc >= mercCap - 1 && ctx.spend.mercari > merc + 1) {
+    w.push({ id: 'mercardCap', message: `メルカードのメルカリ還元は月5,000ポイントまでです。${a.mercariMonths}ヶ月に均等に使う前提で、年${man(mercCap)}を超えた分は別のカードで計算しています。` })
   }
   const airMonthly = (t.air?.amount ?? 0) / 12
   if (airMonthly > a.airLimit) {
@@ -210,10 +213,10 @@ function resultWarnings(best: ComboResult, cashTrio: ComboResult, ctx: Context, 
   const w = [...best.warnings]
   const has = (id: CardId) => best.cardIds.includes(id)
   if (has('anaDinersPremium')) {
-    w.push({ id: 'premiumInvite', message: 'ANAダイナース プレミアムは招待制です。まずANAダイナースかANA JCB法人カードで利用実績を積みましょう。' })
+    w.push({ id: 'premiumInvite', message: 'ANAダイナース プレミアムは招待制です。招待を受けている場合の比較です。発行・利用条件はカード会社に確認してください。' })
   }
-  if (has('anaJcb') && input.entity === 'sole') {
-    w.push({ id: 'anaJcbSole', message: '個人事業主は引き落とし口座の条件を事前にJCBへ確認してください。作れない場合は個人向けのANA JCBカードでも同じ1%です。' })
+  if (has('anaJcbPersonal') && input.entity === 'sole') {
+    w.push({ id: 'anaJcbPersonal', message: '個人向けANA JCBは、事業の支払いに使えるか・引落口座の条件を発行会社に確認してください。法人カードとは別の年会費で計算しています。' })
   }
   if (has('marriott')) {
     const nonShipping = best.allocations
@@ -233,7 +236,7 @@ function resultWarnings(best: ComboResult, cashTrio: ComboResult, ctx: Context, 
 
 export function simulate(input: SimInput): SimResult {
   const ctx = contextOf(input)
-  const candidates = candidatesFor(ctx.goals, input.entity)
+  const candidates = candidatesFor(ctx.goals, input.entity, ctx.assumptions)
   const best = toResult(searchBest(candidates, ctx)!, ctx)
   // 「全部Airカード」は表示名どおり銀行振込を使わない
   const airCtx = { ...ctx, ocBankActive: false }
@@ -250,7 +253,9 @@ export function simulate(input: SimInput): SimResult {
       skippedGoals.push({
         goal: g,
         reason: alt
-          ? `${GOAL_LABELS[g]}のカード（${names?.join('、')}）を入れると、年会費を引いた合計が${yen(best.net - alt.net)}少なくなるため採用していません。`
+          ? best.net - alt.net > 1
+            ? `${GOAL_LABELS[g]}のカード（${names?.join('、')}）を入れると、年会費を引いた合計が${yen(best.net - alt.net)}少なくなるため採用していません。`
+            : `${GOAL_LABELS[g]}のカードを増やしても合計価値が変わらないため、枚数の少ない組み合わせを選びました。`
           : `${GOAL_LABELS[g]}のカードで得になる支払いがないため採用していません。`,
       })
     }

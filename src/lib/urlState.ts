@@ -5,6 +5,7 @@ import type { Entity } from './simulate'
 export interface AppState {
   /** 万円 */
   spendMan: Record<Payee, number>
+  inputPeriod: 'year' | 'month'
   goals: Goal[]
   entity: Entity
   assumptions: Assumptions
@@ -12,6 +13,7 @@ export interface AppState {
 
 export const DEFAULT_STATE: AppState = {
   spendMan: Object.fromEntries(PAYEES.map((p) => [p, 0])) as Record<Payee, number>,
+  inputPeriod: 'year',
   goals: ['cash'],
   entity: 'sole',
   assumptions: DEFAULT_ASSUMPTIONS,
@@ -33,9 +35,13 @@ export function parseState(search: string): AppState {
   const a = d.assumptions
   return {
     spendMan,
+    inputPeriod: q.get('u') === 'm' ? 'month' : 'year',
     goals,
     entity: q.get('e') === 'corp' ? 'corp' : 'sole',
     assumptions: {
+      maxCards: Math.round(num(q.get('mc'), a.maxCards, 0, 3)),
+      allowInviteOnly: q.get('iv') === '1',
+      mercariMonths: Math.round(num(q.get('mm'), a.mercariMonths, 1, 12)),
       mileValue: num(q.get('mv'), a.mileValue, 0.1, 10),
       marriottPointValue: num(q.get('pv'), a.marriottPointValue, 0.1, 5),
       mercardRate: num(q.get('mr'), a.mercardRate * 100, 0, 10) / 100,
@@ -50,13 +56,17 @@ export function parseState(search: string): AppState {
 export function toQuery(s: AppState): string {
   const q = new URLSearchParams()
   for (const p of PAYEES) if (s.spendMan[p] > 0) q.set(p, String(s.spendMan[p]))
+  if (s.inputPeriod === 'month') q.set('u', 'm')
   q.set('g', s.goals.join(','))
   if (s.entity === 'corp') q.set('e', 'corp')
   const a = s.assumptions
   const d = DEFAULT_STATE.assumptions
+  if (a.maxCards !== d.maxCards) q.set('mc', String(a.maxCards))
+  if (a.allowInviteOnly) q.set('iv', '1')
+  if (a.mercariMonths !== d.mercariMonths) q.set('mm', String(a.mercariMonths))
   if (a.mileValue !== d.mileValue) q.set('mv', String(a.mileValue))
   if (a.marriottPointValue !== d.marriottPointValue) q.set('pv', String(a.marriottPointValue))
-  if (a.mercardRate !== d.mercardRate) q.set('mr', String(Math.round(a.mercardRate * 100)))
+  if (a.mercardRate !== d.mercardRate) q.set('mr', String(a.mercardRate * 100))
   if (a.freeNightValue !== d.freeNightValue) q.set('fn', String(a.freeNightValue / 10_000))
   if (a.ocBankTransfer !== d.ocBankTransfer) q.set('ob', a.ocBankTransfer ? '1' : '0')
   if (a.airLimit !== d.airLimit) q.set('al', String(a.airLimit / 10_000))
