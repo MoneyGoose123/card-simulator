@@ -1,5 +1,6 @@
 // 損益分岐点（5-6）。数値は cards.ts から組み立て、mileValue に応じて動的に計算する。
 import { CARDS, RULES, SHIPPING_PAYEES, totalFee, type Assumptions, type Goal, type Payee } from '../data/cards'
+import type { Entity } from './simulate'
 import { marriottValue } from './allocate'
 
 export interface BreakevenRow {
@@ -34,7 +35,7 @@ export function marriottThreshold(a: Assumptions, goals: Goal[]): number | null 
   return null
 }
 
-export function breakevens(spend: Record<Payee, number>, a: Assumptions, goals: Goal[]): BreakevenRow[] {
+export function breakevens(spend: Record<Payee, number>, a: Assumptions, goals: Goal[], entity: Entity = 'corp'): BreakevenRow[] {
   const V = a.mileValue
   const total = Object.values(spend).reduce((s, v) => s + v, 0)
   const bonusTarget = RULES.amex.bonusPayees.reduce((s, p) => s + spend[p], 0)
@@ -42,7 +43,7 @@ export function breakevens(spend: Record<Payee, number>, a: Assumptions, goals: 
     .filter(([p]) => !SHIPPING_PAYEES.includes(p as Payee))
     .reduce((s, [, v]) => s + v, 0)
 
-  const jcb = CARDS.anaJcb
+  const jcb = entity === 'sole' ? CARDS.anaJcbPersonal : CARDS.anaJcb
   const jcbBonus = jcb.annualBonusMiles ?? 0
   const premium = CARDS.anaDinersPremium
   const premiumBonus = premium.annualBonusMiles ?? 0
@@ -60,7 +61,7 @@ export function breakevens(spend: Record<Payee, number>, a: Assumptions, goals: 
     },
     {
       id: 'anaJcb',
-      name: 'ANA JCB法人カード',
+      name: jcb.name,
       compare: '全部Airカード',
       threshold: linearThreshold(totalFee(jcb) - AIR_FEE - jcbBonus * V, jcb.baseRate * V - AIR_RATE),
       userAmount: total,
@@ -88,7 +89,7 @@ export function breakevens(spend: Record<Payee, number>, a: Assumptions, goals: 
     {
       id: 'anaDinersPremium',
       name: 'ANAダイナース プレミアム',
-      compare: 'ANA JCB法人カード',
+      compare: jcb.name,
       threshold: linearThreshold(
         totalFee(premium) - totalFee(jcb) - (premiumBonus - jcbBonus) * V,
         (premium.baseRate - jcb.baseRate) * V,

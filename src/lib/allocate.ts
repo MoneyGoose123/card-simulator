@@ -106,7 +106,7 @@ export function marriottMiles(points: number): number {
 
 /** 年間の上限（円）。メルカードはメルカリ分のみ */
 function capYen(cardId: CardId, payee: Payee, a: Assumptions): number {
-  if (cardId === 'mercard' && payee === 'mercari') return (RULES.mercard.monthlyPointCap * 12) / a.mercardRate
+  if (cardId === 'mercard' && payee === 'mercari') return (RULES.mercard.monthlyPointCap * a.mercariMonths) / a.mercardRate
   if (cardId === 'saison') return RULES.saison.mileSpendCapYen
   return Infinity
 }
@@ -153,21 +153,23 @@ function allocateLinear(linear: CardId[], rem: Amounts, ctx: Context): Draft[] {
 }
 
 /** 非線形のカードに寄せる順番（区間）。同じ区間の中は線形の代替が低い支払い先から */
-function segmentsFor(cardId: CardId, rem: Amounts, alt: Amounts, ctx: Context): { payee: Payee; amount: number }[] {
+function segmentsFor(cardId: CardId, rem: Amounts, linear: CardId[], ctx: Context): { payee: Payee; amount: number }[] {
   const a = ctx.assumptions
-  const eligible = PAYEES.filter((p) => rem[p] > EPS && rateOf(cardId, p, a) > 0).sort((x, y) => alt[x] - alt[y])
-  if (CARDS[cardId].currency !== 'mr') return eligible.map((p) => ({ payee: p, amount: rem[p] }))
-  // アメックス：3倍の対象を上限まで先に、残りは代替の低い順
-  const left = { ...rem }
+  const eligible = allocateLinear(linear, rem, ctx)
+    .filter((s) => rateOf(cardId, s.payee, a) > 0)
+    .map((s) => ({ ...s, alternative: s.cardId === 'none' ? 0 : linearValue(s.cardId, s.payee, ctx) }))
+    .sort((x, y) => x.alternative - y.alternative)
+  if (CARDS[cardId].currency !== 'mr') return eligible.map(({ payee, amount }) => ({ payee, amount }))
+  const rest = eligible.map((s) => ({ ...s }))
   const segs: { payee: Payee; amount: number }[] = []
   let bonusLeft: number = RULES.amex.bonusSpendCapYen
-  for (const p of eligible.filter((x) => RULES.amex.bonusPayees.includes(x))) {
-    const take = Math.min(left[p], bonusLeft)
-    if (take > EPS) segs.push({ payee: p, amount: take })
-    left[p] -= take
+  for (const s of rest.filter((s) => RULES.amex.bonusPayees.includes(s.payee))) {
+    const take = Math.min(s.amount, bonusLeft)
+    if (take > EPS) segs.push({ payee: s.payee, amount: take })
+    s.amount -= take
     bonusLeft -= take
   }
-  for (const p of eligible) if (left[p] > EPS) segs.push({ payee: p, amount: left[p] })
+  for (const s of rest) if (s.amount > EPS) segs.push({ payee: s.payee, amount: s.amount })
   return segs
 }
 
@@ -308,9 +310,6 @@ export function candidatePlans(cardIds: CardId[], ctx: Context): Allocation[][] 
   }
   const linear = cardIds.filter((id) => !['mr', 'marriott'].includes(CARDS[id].currency))
   const nonLinear = cardIds.filter((id) => ['mr', 'marriott'].includes(CARDS[id].currency))
-  const alt = Object.fromEntries(
-    PAYEES.map((p) => [p, Math.max(0, ...linear.map((id) => linearValue(id, p, ctx)))]),
-  ) as Amounts
 
   const plans: Allocation[][] = []
   const orders = nonLinear.length === 2 ? [nonLinear, [...nonLinear].reverse()] : [nonLinear]
@@ -319,7 +318,7 @@ export function candidatePlans(cardIds: CardId[], ctx: Context): Allocation[][] 
       plans.push(merge([...base, ...acc, ...allocateLinear(linear, r, ctx)]))
       return
     }
-    const segs = segmentsFor(order[i], r, alt, ctx)
+    const segs = segmentsFor(order[i], r, linear, ctx)
     for (const load of loadCandidates(order[i], segs, ctx)) {
       const { drafts, rem: next } = takeFromSegments(order[i], segs, load, r)
       walk(order, i + 1, next, [...acc, ...drafts])
