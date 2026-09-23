@@ -42,6 +42,14 @@ export function Notes({ ocBankActive }: { ocBankActive: boolean }) {
             <li>Airカード：利用枠（総枠）は最大500万円で、入会時は最大100万円。利用枠は支払い前の残高も含むため、月の利用額が枠に近いと足りなくなります。この計算は利用枠を考慮しない参考計算です。送料が大きい場合は、UPSIDERやアメックス・ダイナースを受け皿に。</li>
           </ul>
         </Item>
+        <Item title="参考：アメックスのポイントをJAL便に使う">
+          <p>
+            アメックス（ビジネス・グリーン／ゴールド）のポイントは、ANAへの移行上限（年4万マイル）を超えた分を、ブリティッシュ・エアウェイズのAviosなどほかの航空会社のマイルに移せます。AviosはJAL便の特典航空券に使えます。
+          </p>
+          <p>
+            この計算では、4万マイルを超えた分を「ANA以外の航空会社のマイル（1pt＝{RULES.amex.overflowMileRate}マイル）」として評価しています。JALマイルを選んだ場合の候補にアメックスは含めていません。移行のレートや条件は、移行前にアメックスの公式サイトで確認してください。
+          </p>
+        </Item>
         <Item title="候補から外したカード">
           <ul className="list-disc space-y-1 pl-5">
             {EXCLUDED_CARDS.map((c) => (
