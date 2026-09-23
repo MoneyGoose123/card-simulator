@@ -261,6 +261,7 @@ describe('追加機能と配分の回帰テスト', () => {
     const merc = r.best.allocations.find(a => a.cardId === 'mercard')!
     expect(merc.amount).toBe(125_000)
     expect(merc.value).toBe(5_000)
+    expect(r.warnings.find(w => w.id === 'mercardCap')?.message).toContain('年125,000円')
     expect(r.best.allocations.reduce((sum, a) => sum + a.amount, 0)).toBe(3_000_000)
   })
   it('カード枚数の制限を守り、比較用の現金派にも適用する', () => {

@@ -190,7 +190,7 @@ function comboWarnings(ev: ComboEval, ctx: Context): Warning[] {
   const merc = ev.allocations.find((x) => x.payee === 'mercari' && x.cardId === 'mercard')?.amount ?? 0
   const mercCap = (RULES.mercard.monthlyPointCap * a.mercariMonths) / a.mercardRate
   if (merc > 0 && merc >= mercCap - 1 && ctx.spend.mercari > merc + 1) {
-    w.push({ id: 'mercardCap', message: `メルカードのメルカリ還元は月5,000ポイントまでです。${a.mercariMonths}ヶ月に均等に使う前提で、年${man(mercCap)}を超えた分は別のカードで計算しています。` })
+    w.push({ id: 'mercardCap', message: `メルカードのメルカリ還元は月5,000ポイントまでです。${a.mercariMonths}ヶ月に均等に使う前提で、年${yen(mercCap)}を超えた分は別のカードで計算しています。` })
   }
   const airMonthly = (t.air?.amount ?? 0) / 12
   if (airMonthly > a.airLimit) {
