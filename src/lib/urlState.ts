@@ -42,6 +42,7 @@ export function parseState(search: string): AppState {
       freeNightValue: num(q.get('fn'), a.freeNightValue / 10_000, 0, 100) * 10_000,
       ocBankTransfer: q.has('ob') ? q.get('ob') === '1' : a.ocBankTransfer,
       airLimit: num(q.get('al'), a.airLimit / 10_000, 1, 10_000) * 10_000,
+      useOtherAirlines: q.has('oa') ? q.get('oa') === '1' : a.useOtherAirlines,
     },
   }
 }
@@ -59,6 +60,7 @@ export function toQuery(s: AppState): string {
   if (a.freeNightValue !== d.freeNightValue) q.set('fn', String(a.freeNightValue / 10_000))
   if (a.ocBankTransfer !== d.ocBankTransfer) q.set('ob', a.ocBankTransfer ? '1' : '0')
   if (a.airLimit !== d.airLimit) q.set('al', String(a.airLimit / 10_000))
+  if (a.useOtherAirlines !== d.useOtherAirlines) q.set('oa', a.useOtherAirlines ? '1' : '0')
   return q.toString()
 }
 

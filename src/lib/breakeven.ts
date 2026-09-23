@@ -56,7 +56,7 @@ export function breakevens(spend: Record<Payee, number>, a: Assumptions, goals: 
       threshold: linearThreshold(totalFee(green), 0.03 * V - AIR_RATE),
       userAmount: bonusTarget,
       amountLabel: 'Amazon・Yahoo!ショッピング・Yahoo!オークション',
-      note: 'ANAマイルで使う場合（年4万マイルまで）',
+      note: 'ANAマイルで使う場合（年4万マイルまで、ANA移行の年間参加費込み）',
     },
     {
       id: 'anaJcb',

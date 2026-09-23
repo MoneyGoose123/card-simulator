@@ -35,11 +35,11 @@ export function Notes({ ocBankActive }: { ocBankActive: boolean }) {
         )}
         <Item title="各カードの上限">
           <ul className="list-disc space-y-1 pl-5">
-            <li>アメックス（ビジネス・グリーン／ゴールド）：3倍は年500万円まで（9月1日〜翌8月31日）。ANAマイルへの移行は年4万マイルまで（1月1日〜12月31日、アメックスの全カード合算）。Yahoo!フリマは3倍の対象外です。</li>
-            <li>メルカード：メルカリでの還元は月5,000ポイントまで。</li>
+            <li>アメックス（ビジネス・グリーン／ゴールド）：3倍は年500万円まで（9月1日〜翌8月31日）。ANAマイルへの移行は年4万マイルまで（1月1日〜12月31日、アメックスの全カード合算）で、移行には年間参加費5,500円がかかります（年会費に含めて計算）。Yahoo!フリマは3倍の対象外です。</li>
+            <li>メルカード：メルカリでの還元は月5,000ポイントまで。計算は毎月均等に使う前提です（1か月に集中して払うと、その月は5,000ポイントで頭打ちになります）。メルカリ以外は通常1%（一部対象外の加盟店あり）。</li>
             <li>セゾンプラチナ・ビジネス：JALマイルの加算は年1,500万円まで。</li>
             <li>ANA JCB法人カード：年間の移行上限は記載なし。ANAダイナースは移行上限なし（公式明記）。</li>
-            <li>Airカード：利用枠は最大500万円（初期100万円）。送料が大きいと超えやすいので、UPSIDERやアメックス・ダイナースを受け皿に。</li>
+            <li>Airカード：利用枠（総枠）は最大500万円で、入会時は最大100万円。利用枠は支払い前の残高も含むため、月の利用額が枠に近いと足りなくなります。この計算は利用枠を考慮しない参考計算です。送料が大きい場合は、UPSIDERやアメックス・ダイナースを受け皿に。</li>
           </ul>
         </Item>
         <Item title="候補から外したカード">
@@ -67,9 +67,12 @@ export function Footer({ assumptions: a }: { assumptions: Assumptions }) {
         <h2 className="font-bold text-stone-800 dark:text-stone-200">計算の前提</h2>
         <ul className="mt-1 list-disc pl-5">
           <li>1マイル＝{a.mileValue}円、マリオット1ポイント＝{a.marriottPointValue}円（ホテルで使う場合）、無料宿泊1泊＝{yen(a.freeNightValue)}</li>
-          <li>メルカードのメルカリ還元率 {Math.round(a.mercardRate * 100)}%、Airカードの利用枠 月{a.airLimit / 10_000}万円</li>
+          <li>メルカードのメルカリ還元率 {Math.round(a.mercardRate * 100)}%（毎月均等に利用）、Airカードの利用枠（総枠）{a.airLimit / 10_000}万円</li>
           <li>年会費は2年目以降の金額（税込）。継続ボーナスマイルは毎年もらえる前提</li>
-          <li>アメックスのポイントはANAマイルで使う前提。4万マイルを超えた分は、ANA以外の航空会社のマイル（1pt＝{RULES.amex.overflowMileRate}マイル）で評価</li>
+          <li>
+            アメックスのポイントはANAマイルで使う前提（年間参加費込み）。4万マイルを超えた分は、
+            {a.useOtherAirlines ? `ANA以外の航空会社のマイル（1pt＝${RULES.amex.overflowMileRate}マイル）で評価` : '価値0円で計算'}
+          </li>
         </ul>
       </div>
       <div>

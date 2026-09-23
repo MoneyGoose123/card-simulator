@@ -126,6 +126,7 @@ function breakdownOf(ev: ComboEval, ctx: Context): BreakdownRow[] {
     rows.set(key, { key, label, unit, amount: (prev?.amount ?? 0) + amount, note: note ?? prev?.note })
   }
   for (const [id, t] of Object.entries(ev.totals)) {
+    if (id === 'none') continue
     if (id === 'ocBank') {
       add('cash', '現金', t.units, '円')
       continue
@@ -138,7 +139,11 @@ function breakdownOf(ev: ComboEval, ctx: Context): BreakdownRow[] {
       const toAna = Math.min(t.units, RULES.amex.anaMileCap)
       add('ana', 'ANAマイル', toAna, 'マイル')
       if (t.units > toAna) {
-        add('otherAirline', '他社マイル（ANA以外）', Math.round((t.units - toAna) * RULES.amex.overflowMileRate), 'マイル')
+        if (ctx.assumptions.useOtherAirlines) {
+          add('otherAirline', '他社マイル（ANA以外）', Math.round((t.units - toAna) * RULES.amex.overflowMileRate), 'マイル')
+        } else {
+          add('otherAirline', 'ANAに移せないポイント', t.units - toAna, 'pt', '価値0円で計算（他社マイルは使わない設定）')
+        }
       }
     } else if (cur === 'marriott') {
       const miles = marriottMiles(t.units)
@@ -176,19 +181,17 @@ function comboWarnings(ev: ComboEval, ctx: Context): Warning[] {
   if (bonusSpend > RULES.amex.bonusSpendCapYen) {
     w.push({ id: 'amexBonusCap', message: '3倍の対象は年500万円までです。超えた分は3倍になりません（1倍）。' })
   }
-  const saisonWanted = ev.cardIds.includes('saison')
-    ? Object.entries(ctx.spend).reduce((s, [p, v]) => s + (ev.allocations.some((x) => x.payee === p && x.cardId === 'saison') ? v : 0), 0)
-    : 0
-  if (saisonWanted > RULES.saison.mileSpendCapYen) {
+  const saisonEligible = Object.entries(ctx.spend).reduce((sum, [p, v]) => sum + (p === 'oc' && ctx.ocBankActive ? 0 : v), 0)
+  if ((t.saison?.amount ?? 0) >= RULES.saison.mileSpendCapYen - 1 && saisonEligible > RULES.saison.mileSpendCapYen) {
     w.push({ id: 'saisonCap', message: 'セゾンのJALマイル加算は年1,500万円までです。超えた分は別のカードで計算しています。' })
   }
-  const merc = t.mercard?.amount ?? 0
-  if (merc > 0 && ctx.spend.mercari > merc) {
-    w.push({ id: 'mercardCap', message: `メルカードのメルカリ還元は月5,000ポイントまでです。年${man(merc)}を超えた分は別のカードで計算しています。` })
+  const merc = ev.allocations.find((x) => x.payee === 'mercari' && x.cardId === 'mercard')?.amount ?? 0
+  if (merc > 0 && ctx.spend.mercari > merc + 1) {
+    w.push({ id: 'mercardCap', message: `メルカードのメルカリ還元は月5,000ポイントまでです。毎月均等に使う前提で、年${man(merc)}を超えた分は別のカードで計算しています。` })
   }
   const airMonthly = (t.air?.amount ?? 0) / 12
   if (airMonthly > a.airLimit) {
-    w.push({ id: 'airLimit', message: `Airカードの支払いが月平均${man(airMonthly)}で、利用枠（月${man(a.airLimit)}）を超えそうです。超える分はUPSIDER（年会費無料・1%・大きな利用枠）か、利用枠に一律の制限がないアメックス・ダイナースを検討してください。` })
+    w.push({ id: 'airLimit', message: `Airカードの支払いが月平均${man(airMonthly)}で、利用枠（総枠${man(a.airLimit)}）を超えそうです。利用枠は支払い前の残高も含む総枠なので、実際はもっと早く足りなくなることがあります。この計算は利用枠を考慮しない参考計算です。超える分はUPSIDER（年会費無料・1%・大きな利用枠）か、利用枠に一律の制限がないアメックス・ダイナースを検討してください。` })
   }
   return w
 }
@@ -232,7 +235,9 @@ export function simulate(input: SimInput): SimResult {
   const ctx = contextOf(input)
   const candidates = candidatesFor(ctx.goals, input.entity)
   const best = toResult(searchBest(candidates, ctx)!, ctx)
-  const allAir = toResult(evaluateCardSet(['air'], ctx), ctx)
+  // 「全部Airカード」は表示名どおり銀行振込を使わない
+  const airCtx = { ...ctx, ocBankActive: false }
+  const allAir = toResult(evaluateCardSet(['air'], airCtx), airCtx)
   const cashIds: CardId[] = ['air', 'mercard', 'bizOne']
   const cashTrio = toResult(searchBest(cashIds, { ...ctx, goals: ['cash'] })!, ctx)
 

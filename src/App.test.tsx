@@ -20,7 +20,7 @@ describe('画面のスモークテスト', () => {
   it('URLの入力値から結果が出る（#1 Amazon 200万・ana）', () => {
     const html = renderAt('?amazon=200&g=ana&ob=0&al=500')
     expect(html).toContain('アメックス・ビジネス・グリーン')
-    expect(html).toContain('95,500円')
+    expect(html).toContain('90,000円')
     expect(html).toContain('ANAへ移行できるのは年4万マイルまで')
   })
 

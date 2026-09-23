@@ -8,7 +8,8 @@ const at = (V: number, goals: ('ana' | 'hotel')[] = ['ana']) =>
 
 describe('5-6 損益分岐点（2円のとき）', () => {
   const rows = at(2)
-  it('ビジネス・グリーン 約37万円', () => expect(Math.round(rows.bizGreen.threshold!)).toBe(366_667))
+  // ANA移行の年間参加費5,500円を含めて22,000円 ÷ (0.03×2 − 0.015)
+  it('ビジネス・グリーン 約49万円', () => expect(Math.round(rows.bizGreen.threshold!)).toBe(488_889))
   it('ANA JCB 約9万円（継続マイル込み）、込まない場合 約50万円', () => {
     expect(Math.round(rows.anaJcb.threshold!)).toBe(95_000)
     expect(rows.anaJcb.note).toContain('約50万円')

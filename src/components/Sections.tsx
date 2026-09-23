@@ -85,7 +85,7 @@ export function GoalAnswers({ answers, active }: { answers: Record<Goal, SimResu
       <ul className="divide-y divide-stone-100 dark:divide-stone-800">
         {GOALS.map((g) => {
           const r = answers[g]
-          const has = r.best.allocations.length > 0
+          const has = r.best.allocations.reduce((sum, al) => sum + al.amount, 0) > 0
           return (
             <li key={g} className="grid gap-1 py-3 sm:grid-cols-[8rem_1fr_auto] sm:items-baseline sm:gap-3">
               <p className="text-sm font-semibold">

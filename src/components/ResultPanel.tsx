@@ -17,7 +17,8 @@ export function ResultPanel({ result }: { result: SimResult }) {
   const { best, allAir, cashTrio } = result
   const diff = best.net - allAir.net
   const firstYearFree = best.cardIds.flatMap((id) => CARDS[id].fees.filter((f) => f.firstYearFree).map((f) => ({ card: CARDS[id].name, fee: f })))
-  const hasSpend = best.allocations.length > 0
+  // 入力の有無は割り当て結果ではなく入力額の合計で判定する
+  const hasSpend = best.allocations.reduce((sum, al) => sum + al.amount, 0) > 0
 
   return (
     <div className="rounded-2xl border border-teal-700/30 bg-white p-4 shadow-sm sm:p-5 dark:border-teal-500/30 dark:bg-stone-900">

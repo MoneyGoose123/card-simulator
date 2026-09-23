@@ -73,7 +73,7 @@ export const CARDS: Record<string, Card> = {
     currency: 'cash',
     baseRate: 0.015,
     summary: '現金 1.5%',
-    conditions: '光熱費など還元率が異なる場合・対象外あり。利用枠は最大500万円（初期100万円）',
+    conditions: '光熱費など還元率が異なる場合・対象外あり。利用枠（総枠）は最大500万円、入会時は最大100万円',
     sourceUrl: 'https://airregi.jp/aircard/',
     verifiedAt: VERIFIED_AT,
   },
@@ -83,11 +83,10 @@ export const CARDS: Record<string, Card> = {
     roles: ['core'],
     fees: [],
     currency: 'cash',
-    // TODO(要確認): メルカリ以外の通常還元（1%）は仕様書に記載がないため 0 として計算
-    baseRate: 0,
+    baseRate: 0.01, // メルカリ以外は通常1%（一部対象外の加盟店あり）
     payeeRates: { mercari: 0.04 }, // 実際の率は設定 mercardRate で上書きする
-    summary: 'メルカリで1〜4%',
-    conditions: 'メルカリ還元は月5,000ポイントまで',
+    summary: 'メルカリで1〜4%、その他1%',
+    conditions: 'メルカリ還元は月5,000ポイントまで（計算は毎月均等に使う前提）',
     sourceUrl: 'https://help.jp.mercari.com/guide/articles/1227/',
     verifiedAt: VERIFIED_AT,
   },
@@ -167,13 +166,14 @@ export const CARDS: Record<string, Card> = {
     fees: [
       { label: '年会費', amount: 13_200 },
       { label: 'メンバーシップ・リワード・プラス', amount: 3_300 },
+      { label: 'ANAマイル移行の年間参加費', amount: 5_500 },
     ],
     currency: 'mr',
     baseRate: 0.01,
     payeeRates: { amazon: 0.03, yshop: 0.03, yauc: 0.03 },
     exclusiveGroup: 'amexMr',
     summary: '100円＝1pt、Amazon・Yahoo!は3pt',
-    conditions: 'ANA移行は年4万マイルまで（アメックス全カード合算）',
+    conditions: 'ANA移行は年4万マイルまで（アメックス全カード合算）。ANA移行には年間参加費5,500円',
     sourceUrl: 'https://www.americanexpress.com/ja-jp/point/membership-rewards-plus/',
     verifiedAt: VERIFIED_AT,
   },
@@ -184,6 +184,7 @@ export const CARDS: Record<string, Card> = {
     fees: [
       { label: '年会費', amount: 49_500 },
       { label: 'メンバーシップ・リワード・プラス', amount: 3_300 },
+      { label: 'ANAマイル移行の年間参加費', amount: 5_500 },
     ],
     currency: 'mr',
     baseRate: 0.01,
@@ -273,8 +274,10 @@ export interface Assumptions {
   mercardRate: number
   freeNightValue: number
   ocBankTransfer: boolean
-  /** Airカードの利用枠（月・円） */
+  /** Airカードの利用枠（総枠・円） */
   airLimit: number
+  /** ANAに移せない分のMRポイントを、ANA以外の航空会社のマイルとして評価する */
+  useOtherAirlines: boolean
 }
 
 export const DEFAULT_ASSUMPTIONS: Assumptions = {
@@ -284,6 +287,7 @@ export const DEFAULT_ASSUMPTIONS: Assumptions = {
   freeNightValue: 60_000,
   ocBankTransfer: true,
   airLimit: 1_000_000,
+  useOtherAirlines: true,
 }
 
 export const ASSUMPTION_OPTIONS = {

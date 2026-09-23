@@ -145,7 +145,7 @@ export function InputPanel({ state, ocBankAvailable, onChange }: Props) {
         <div className="mt-3 divide-y divide-stone-100 dark:divide-stone-800">
           <Select label="1マイルの価値" value={a.mileValue} options={ASSUMPTION_OPTIONS.mileValue} format={(v) => `${v}円`} onChange={(v) => setA({ mileValue: v })} />
           <Select label="マリオット1ポイントの価値（ホテルで使う場合）" value={a.marriottPointValue} options={ASSUMPTION_OPTIONS.marriottPointValue} format={(v) => `${v}円`} onChange={(v) => setA({ marriottPointValue: v })} />
-          <Select label="メルカードの還元率" value={a.mercardRate} options={ASSUMPTION_OPTIONS.mercardRate} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => setA({ mercardRate: v })} />
+          <Select label="メルカードの還元率（メルカリ）" value={a.mercardRate} options={ASSUMPTION_OPTIONS.mercardRate} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => setA({ mercardRate: v })} />
           <label className="grid grid-cols-[1fr_8.5rem] items-center gap-3 py-1.5 text-sm">
             <span>マリオット無料宿泊1泊の価値</span>
             <span className="relative">
@@ -170,7 +170,14 @@ export function InputPanel({ state, ocBankAvailable, onChange }: Props) {
               </span>
             </label>
           )}
-          <Select label="Airカードの利用枠（月）" value={a.airLimit} options={ASSUMPTION_OPTIONS.airLimit} format={(v) => `${v / 10_000}万円`} onChange={(v) => setA({ airLimit: v })} />
+          <label className="flex items-start gap-3 py-2.5 text-sm">
+            <input type="checkbox" className="mt-0.5 size-4 accent-teal-700" checked={a.useOtherAirlines} onChange={(e) => setA({ useOtherAirlines: e.target.checked })} />
+            <span>
+              アメックスでANAに移せない分（年4万マイル超）を、ANA以外の航空会社のマイルとして使う
+              <span className="block text-xs text-stone-500 dark:text-stone-400">オフにすると、超えた分の価値を0円で計算します。</span>
+            </span>
+          </label>
+          <Select label="Airカードの利用枠（総枠）" value={a.airLimit} options={ASSUMPTION_OPTIONS.airLimit} format={(v) => `${v / 10_000}万円`} onChange={(v) => setA({ airLimit: v })} />
         </div>
       </details>
     </div>

@@ -23,8 +23,9 @@ describe('9章 テストケース', () => {
   it('#1 Amazon 200万・ana → ビジネス・グリーン、ANA上限の警告', () => {
     const r = simulate(input({ amazon: 200 }, ['ana']))
     expect(cardsOf(r.best)).toEqual(['bizGreen'])
-    // 60,000pt中 ANA 40,000マイル（80,000円）＋ 20,000pt×0.8×2円（32,000円）− 16,500円
-    expect(r.best.net).toBe(80_000 + 32_000 - 16_500)
+    // 60,000pt中 ANA 40,000マイル（80,000円）＋ 20,000pt×0.8×2円（32,000円）
+    // − 年会費13,200円・リワード・プラス3,300円・ANA移行参加費5,500円
+    expect(r.best.net).toBe(80_000 + 32_000 - 22_000)
     expect(hasWarning(r, 'amexAnaCap')).toBe(true)
   })
 
@@ -58,8 +59,8 @@ describe('9章 テストケース', () => {
     const jcb = evaluateCombo(['anaJcb'], i)
     const premium = evaluateCombo(['anaDinersPremium'], i)
     expect(Math.abs(jcb.net - premium.net)).toBeLessThan(1_000)
-    // B案（60,000pt単位の交換）でも、この額ではマリオットの方が得になる
-    expect(cardsOf(simulate(i).best)).toEqual(['marriott'])
+    // B案（60,000pt単位の交換）でも、この額ではマリオットを含む組み合わせの方が得になる
+    expect(simulate(i).best.cardIds).toContain('marriott')
   })
 
   it('#7 送料のみ 440万・jal → セゾンとAirカードの差がほぼ0', () => {
@@ -129,10 +130,13 @@ describe('マリオット（B案：60,000pt単位でマイル交換）', () => {
     expect(r.net).toBe(120_000 + 60_000 - 82_500)
   })
 
-  it('端数で損をするなら、単純な還元率が高くてもマリオットに寄せない', () => {
-    // その他 300万：マリオットは率なら2.5%だが 90,000pt → 1ブロック（50,000円）。ANA JCBなら60,000円
+  it('端数が出ないよう、同じ支払い先を60,000pt分だけマリオットに寄せる', () => {
+    // その他 300万：マリオット200万（60,000pt＝25,000マイル）＋ ANA JCB 100万
     const r = evaluateCombo(['marriott', 'anaJcb'], input({ other: 300 }, ['ana']))
-    expect(r.allocations.map((a) => a.cardId)).toEqual(['anaJcb'])
+    expect(r.allocations.map((a) => [a.cardId, a.amount])).toEqual([
+      ['marriott', 2_000_000],
+      ['anaJcb', 1_000_000],
+    ])
   })
 
   it('ブロックがちょうど埋まるように支払い先を組み合わせる', () => {
@@ -190,5 +194,50 @@ describe('その他のルール', () => {
   it('目的のカードより現金派が得なら警告', () => {
     const r = simulate(input({ amazon: 10 }, ['jal']))
     expect(hasWarning(r, 'cashBetter')).toBe(true)
+  })
+
+  it('ANAに移せない分を他社マイルで使わない設定なら、超過分は0円', () => {
+    const r = evaluateCombo(['bizGreen'], input({ amazon: 200 }, ['ana'], { useOtherAirlines: false }))
+    expect(r.net).toBe(80_000 - 22_000)
+  })
+})
+
+describe('検証レポート（2026-09-23）の再現ケース', () => {
+  it('2: メルカリ500万・ホテル → マリオット400万＋メルカード100万（137,500円）', () => {
+    const r = simulate(input({ mercari: 500 }, ['hotel']))
+    expect(r.best.net).toBe(137_500)
+    expect(r.best.allocations.find((a) => a.cardId === 'marriott')!.amount).toBe(4_000_000)
+  })
+
+  it('2: Amazon 1,000万・ANA → グリーン500万＋ANA JCB 500万（参加費込みで328,025円）', () => {
+    const r = simulate(input({ amazon: 1000 }, ['ana']))
+    expect(cardsOf(r.best)).toEqual(['anaJcb', 'bizGreen'])
+    expect(r.best.allocations.find((a) => a.cardId === 'bizGreen')!.amount).toBe(5_000_000)
+    expect(r.best.net).toBe(333_525 - 5_500)
+  })
+
+  it('3: その他10万・ANA → 年会費無料のメルカード（通常1%）になり、現金派の警告が出る', () => {
+    const r = simulate(input({ other: 10 }, ['ana']))
+    expect(r.best.cardIds).toEqual(['mercard'])
+    expect(r.best.net).toBe(1_000)
+    expect(hasWarning(r, 'cashBetter')).toBe(true)
+  })
+
+  it('3: 還元のあるカードがない支払いも「還元なし」として金額を残す', () => {
+    const r = evaluateCombo([], input({ other: 10 }, ['ana']))
+    expect(r.allocations).toEqual([expect.objectContaining({ payee: 'other', cardId: 'none', amount: 100_000 })])
+  })
+
+  it('4: 「全部Airカード」に銀行振込が混ざらない', () => {
+    const r = simulate(input({ oc: 300 }, ['cash'], { ocBankTransfer: true }))
+    expect(r.best.net).toBe(63_000)
+    expect(r.allAir.net).toBe(45_000 - 5_500)
+  })
+
+  it('5: 上限超過分の送り先でもセゾンの上限を超えない', () => {
+    const r = evaluateCombo(['mercard', 'saison', 'air'], input({ mercari: 200, other: 1500 }, ['jal']))
+    const saison = r.allocations.filter((a) => a.cardId === 'saison').reduce((s, a) => s + a.amount, 0)
+    expect(saison).toBeLessThanOrEqual(15_000_000)
+    expect(r.allocations.reduce((s, a) => s + a.amount, 0)).toBe(17_000_000)
   })
 })
